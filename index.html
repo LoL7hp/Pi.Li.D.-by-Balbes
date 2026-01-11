@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Pixel Light Dungeon by Balbes</title>
+<style>
+body{margin:0;overflow:hidden;background:black}
+canvas{
+width:100vw;
+height:100vh;
+image-rendering:pixelated;
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<script>
+const SCALE = 4;
+const c = document.getElementById("c");
+c.width = innerWidth / SCALE;
+c.height = innerHeight / SCALE;
+const ctx = c.getContext("2d");
+
+const tile = 64;
+const fov = Math.PI/3;
+
+const map = [
+"111111111111111111",
+"100000000000000001",
+"100000000000000001",
+"100000000000000001",
+"100000000000111111",
+"100000000000100001",
+"100000000000100001",
+"100000000000100001",
+"100000000000111111",
+"100000000000000000",
+"100000000000000000",
+"100000000000000000",
+"100000000000000000",
+"100000000000000000",
+"111111111111111111"
+];
+
+let player = {
+x: 3.5*tile,
+y: 3.5*tile,
+a: 0,
+s: 2.5
+};
+
+const keys = {};
+addEventListener("keydown",e=>keys[e.key.toLowerCase()]=true);
+addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
+
+function wall(x,y){
+let mx = (x/tile)|0;
+let my = (y/tile)|0;
+return map[my]?.[mx]==="1";
+}
+const torches=[];
+for(let y=1;y<map.length-1;y++)
+for(let x=1;x<map[0].length-1;x++)
+if(map[y][x]==="0" && Math.random()<0.04)
+torches.push({x:(x+.5)*tile,y:(y+.5)*tile,r:240});
+
+function lightAt(x,y){
+let l = 0.15;
+for(let t of torches){
+let d = Math.hypot(x-t.x,y-t.y);
+if(d<t.r) l += 1 - d/t.r;
+}
+return Math.min(l,1);
+}
+function move(){
+let dx=0, dy=0;
+if(keys["w"]||keys["ц"]) { dx+=Math.cos(player.a); dy+=Math.sin(player.a); }
+if(keys["s"]||keys["ы"]) { dx-=Math.cos(player.a); dy-=Math.sin(player.a); }
+let speed = (keys["w"]||keys["ц"]) ? 10 : 6;
+let nx = player.x + dx*speed;
+let ny = player.y + dy*speed;
+
+if(!wall(nx,player.y)) player.x = nx;
+if(!wall(player.x,ny)) player.y = ny;
+
+if(keys["a"]||keys["ф"]||keys["arrowleft"]) player.a -= 0.06;
+if(keys["d"]||keys["в"]||keys["arrowright"]) player.a += 0.06;
+}
+
+const floorTex = document.createElement("canvas");
+floorTex.width = floorTex.height = 64;
+const f = floorTex.getContext("2d");
+for(let y=0;y<64;y++)
+for(let x=0;x<64;x++){
+let n = 140 + Math.random()*20;
+f.fillStyle=`rgb(${n},${n},${n})`;
+f.fillRect(x,y,1,1);
+}
+
+/* ===== РЕНДЕР ===== */
+function render(){
+ctx.clearRect(0,0,c.width,c.height);
+ctx.fillStyle="#111";
+ctx.fillRect(0,0,c.width,c.height/2);
+
+for(let y=c.height/2;y<c.height;y++){
+let p = (y-c.height/2)/(c.height/2);
+let dist = tile/(p+0.001);
+for(let x=0;x<c.width;x++){
+let ra = player.a - fov/2 + fov*x/c.width;
+let fx = player.x + Math.cos(ra)*dist;
+let fy = player.y + Math.sin(ra)*dist;
+let l = lightAt(fx,fy);
+let g = (120*l)|0;
+ctx.fillStyle=`rgb(${g},${g},${g})`;
+ctx.fillRect(x,y,1,1);
+}
+}
+
+// стены
+for(let x=0;x<c.width;x++){
+let ra = player.a - fov/2 + fov*x/c.width;
+let d=0,hx,hy;
+while(d<800){
+d+=4;
+hx=player.x+Math.cos(ra)*d;
+hy=player.y+Math.sin(ra)*d;
+if(wall(hx,hy)) break;
+}
+let h = (tile*260)/(d*Math.cos(ra-player.a));
+let l = lightAt(hx,hy);
+let ccol = (200*l)|0;
+ctx.fillStyle=`rgb(${ccol},${ccol*0.7|0},${ccol*0.3|0})`;
+ctx.fillRect(x,(c.height-h)/2,1,h);
+}
+}
+
+function loop(){
+move();
+render();
+requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
